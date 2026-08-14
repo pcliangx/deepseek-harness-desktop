@@ -16,15 +16,17 @@ import { resolveMacSigning, type MacSigningConfig } from '../src/signing-config.
 
 /**
  * Run a security/codesign tool to completion, failing the dist on a non-zero
- * exit.
+ * exit. The argv carries passphrases (`-p`, `-P`, `-k`) and is never logged;
+ * `purpose` names the step in the failure line instead.
  * @param tool - the executable name.
  * @param args - its argv (may contain passphrases, as in electron-builder's
  * own import; this path runs on ephemeral CI runners).
+ * @param purpose - static step label for failure output.
  */
-function run(tool: string, args: string[]): void {
+function run(tool: string, args: string[], purpose: string): void {
   const result = spawnSync(tool, args, { stdio: 'inherit' })
   if (result.status !== 0) {
-    console.error(`dist: ${tool} ${args.join(' ')} failed with exit ${result.status}`)
+    console.error(`dist: ${purpose} (${tool}) failed with exit ${result.status}`)
     process.exit(result.status ?? 1)
   }
 }
@@ -114,18 +116,20 @@ function importIdentity(env: NodeJS.ProcessEnv): (() => void) | undefined {
     p12 = resolve(dir, 'cert.p12')
     writeFileSync(p12, Buffer.from(link, 'base64'))
   }
-  run('security', ['create-keychain', '-p', keychainPassword, keychain])
-  run('security', ['unlock-keychain', '-p', keychainPassword, keychain])
-  run('security', ['set-keychain-settings', keychain])
-  run('security', ['import', p12, '-k', keychain, '-P', password, '-T', '/usr/bin/codesign'])
-  run('security', ['set-key-partition-list', '-S', 'apple-tool:,apple:', '-k', keychainPassword, '-T', '/usr/bin/codesign', keychain])
+  run('security', ['create-keychain', '-p', keychainPassword, keychain], 'create-keychain')
+  run('security', ['unlock-keychain', '-p', keychainPassword, keychain], 'unlock-keychain')
+  run('security', ['set-keychain-settings', keychain], 'set-keychain-settings')
+  run('security', ['import', p12, '-k', keychain, '-P', password, '-T', '/usr/bin/codesign'], 'import identity')
+  // No `-T` here: set-key-partition-list has no such option (exit 2 usage
+  // error); codesign access comes from the partition IDs themselves.
+  run('security', ['set-key-partition-list', '-S', 'apple-tool:,apple:', '-k', keychainPassword, keychain], 'set-key-partition-list')
   const listed = spawnSync('security', ['list-keychains', '-d', 'user'])
   const previous = listed.status === 0
     ? listed.stdout.toString().split('\n').map(line => line.trim().replace(/^"|"$/g, '')).filter(line => line !== '')
     : []
-  run('security', ['list-keychains', '-d', 'user', '-s', keychain, ...previous])
+  run('security', ['list-keychains', '-d', 'user', '-s', keychain, ...previous], 'register keychain in search list')
   return () => {
-    run('security', ['delete-keychain', keychain])
+    run('security', ['delete-keychain', keychain], 'delete-keychain')
     rmSync(dir, { recursive: true, force: true })
   }
 }
