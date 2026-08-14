@@ -77,9 +77,10 @@ export function startHost(opts: HostSpawnOptions): HostSupervisor {
 
   return {
     ready,
-    dispose: async () => {
+    dispose: () => {
       clearTimeout(timer)
       child.kill('SIGTERM')
+      return Promise.resolve()
     },
   }
 }
