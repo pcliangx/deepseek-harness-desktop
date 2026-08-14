@@ -6,7 +6,7 @@ Status: implemented
 
 ## Problem
 
-harness 此前没有桌面发行形态。`dsh web` 启动一个 Node 宿主(profile 为 `['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app']`),在 OS 分配的环回端口上服务 SPA,但要用上它需要终端、仓库检出和匹配的 Node 安装。web GUI 与宿主之间 already 通过环回上的 HTTP 加两条 server→browser WebSocket 通信,因此做一个一键安装 macOS 应用要回答的问题是:构建哪种载体、打包后的应用如何为宿主以及 harness 经 subprocess seam 派生的 Node 孙进程(LSP server、ACP subagent)提供 Node 运行时、以及如何把 pnpm workspace 闭包变成自包含的 `.app`。
+harness 此前没有桌面发行形态。`dsh web` 启动一个 Node 宿主(profile 为 `['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app']`),在 OS 分配的环回端口上服务 SPA,但要用上它需要终端、仓库检出和匹配的 Node 安装。web GUI 与宿主之间本就通过环回上的 HTTP 加两条 server→browser WebSocket 通信,因此做一个一键安装 macOS 应用要回答的问题是:构建哪种载体、打包后的应用如何为宿主以及 harness 经 subprocess seam 派生的 Node 孙进程(LSP server、ACP subagent)提供 Node 运行时、以及如何把 pnpm workspace 闭包变成自包含的 `.app`。
 
 ## Decision
 
