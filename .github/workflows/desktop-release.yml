@@ -26,8 +26,9 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         # The macOS runner's default 256 fd ceiling cannot sign the staged CLI
-        # tree (EMFILE); raise it before electron-builder walks the tree.
-        run: ulimit -n 4096 && pnpm --filter @deepseek-ai/dsh-desktop run dist
+        # tree (EMFILE); 4096 still exhausts ~60% in — raise soft to the hard
+        # max before electron-builder walks the tens of thousands of files.
+        run: ulimit -n "$(ulimit -Hn)" && pnpm --filter @deepseek-ai/dsh-desktop run dist
       - uses: actions/upload-artifact@v4
         with:
           name: dist-macos
