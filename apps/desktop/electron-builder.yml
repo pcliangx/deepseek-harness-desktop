@@ -1,0 +1,29 @@
+appId: ai.deepseek.dsh
+productName: DeepSeek Harness
+directories:
+  output: dist-build
+files:
+  - lib/main/**
+extraResources:
+  - from: resources
+    to: .
+asar: true
+asarUnpack:
+  - '**/*.node'
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: zip
+      arch:
+        - arm64
+    - target: dmg
+      arch:
+        - arm64
+  # The staged CLI tree is pre-signed (real Mach-O files only) by
+  # scripts/dist.impl.ts; skipping it here also bypasses @electron/osx-sign's
+  # isBinaryFile content probing, which signs woff2/wasm-looking files one by
+  # one and takes hours over the ~11k-file tree.
+  signIgnore:
+    - Resources/apps/cli/.*
+  # Unsigned until Plan 2 (signing + notarization).
+  identity: null

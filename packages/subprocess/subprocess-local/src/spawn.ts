@@ -56,6 +56,10 @@ export interface SpawnInternals {
   platform?: NodeJS.Platform
   /** Linux process-group member probe (defaults to `/proc` inspection). */
   linuxProcessGroupHasLiveMembers?: (processGroupId: number) => boolean | undefined
+  /** Test override for the presence of the Electron runtime (`process.versions.electron`). */
+  electron?: boolean
+  /** Test override for the Node `spawn` used to launch the child. */
+  spawnImpl?: typeof spawn
 }
 
 /**
@@ -316,10 +320,13 @@ function signalTree(
 
 /**
  * Spawn one isolated detached process tree with the spec's per-stream stdio
- * dispositions. Runtime exits resolve `done` as {@link SubprocessOutcome};
+ * dispositions. Under the Electron runtime, an `argv[0]` naming `node`
+ * (bare, `node.exe`, or `process.execPath`) is remapped onto the Electron
+ * binary with `ELECTRON_RUN_AS_NODE=1` so node-based children need no system
+ * Node. Runtime exits resolve `done` as {@link SubprocessOutcome};
  * only spawn failures reject.
  * @param spec - fully resolved argv, cwd, stdio, grace, cancellation, environment.
- * @param internals - test-only spill-directory, platform, and taskkill overrides.
+ * @param internals - test-only spill-directory, platform, taskkill, Electron-probe, and spawn overrides.
  * @returns live subprocess handle.
  * @throws when `graceMs` cannot be represented by one Node timer.
  */
@@ -335,10 +342,18 @@ export function spawnSubprocess(spec: SubprocessSpawnSpec, internals: SpawnInter
   if (spec.signal?.aborted) {
     throw new Error(`aborted before spawn: ${String(spec.signal.reason ?? 'aborted')}`)
   }
-  const [program, ...args] = spec.argv
-  if (program === undefined || program.length === 0) {
+  const [rawProgram, ...args] = spec.argv
+  if (rawProgram === undefined || rawProgram.length === 0) {
     throw new Error('invalid argv: expected a non-empty program name at argv[0]')
   }
+  const isElectron = internals.electron ?? Boolean(process.versions.electron)
+  // Under Electron the user machine has no `node`; node-based children run on
+  // the Electron binary in Node mode instead. Bash/PTY and other native
+  // binaries keep their own argv[0].
+  const wantsNode = rawProgram === 'node' || rawProgram === 'node.exe' || rawProgram === process.execPath
+  const runOnElectronNode = isElectron && wantsNode
+  const program = runOnElectronNode ? process.execPath : rawProgram
+  const electronNodeEnv = runOnElectronNode ? { ELECTRON_RUN_AS_NODE: '1' } : {}
 
   const isCollect = (mode: SubprocessOutputMode): mode is SubprocessCollect =>
     mode !== 'pipe' && mode !== 'inherit'
@@ -346,8 +361,9 @@ export function spawnSubprocess(spec: SubprocessSpawnSpec, internals: SpawnInter
   const errMode = spec.stdio.stderr
   const stdinMode = spec.stdio.stdin
 
-  const env = childEnv(spec.env)
-  const child = spawn(program, args, {
+  const env = { ...childEnv(spec.env), ...electronNodeEnv }
+  const launch = internals.spawnImpl ?? spawn
+  const child = launch(program, args, {
     cwd: spec.cwd,
     env,
     stdio: [

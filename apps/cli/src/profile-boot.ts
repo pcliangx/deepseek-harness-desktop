@@ -11,9 +11,9 @@
  * @module @deepseek-ai/dsh/profile-boot
  */
 
-import { writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { existsSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { FiberState, type Context } from '@deepseek-ai/cordis'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
@@ -52,6 +52,26 @@ export function homePatchPath(): string {
 
 /** Absolute path of this dsh installation's package.json (both anchors: src/ and lib/ sit one level under apps/cli). */
 export const INSTALL_ANCHOR = fileURLToPath(new URL('../package.json', import.meta.url))
+
+/**
+ * Resolve the base URL bare plugin names import from in packaged layouts. A
+ * pnpm deploy nests the runtime closure: the install root's top-level
+ * `node_modules` holds only direct dependencies, while a profile bundle's
+ * bare plugin rows are resolvable only from the shared `.pnpm` hoist that
+ * links the whole closure. A flat npm install resolves every dependency from
+ * the top level directly. The dev checkout has no `node_modules` under
+ * `apps/cli` and keeps the default config-relative resolution.
+ * @param installRoot - absolute directory of this dsh installation.
+ * @returns the base URL for bare package imports, or `undefined` to keep the
+ * default resolution.
+ */
+export function resolveBareModuleBase(installRoot: string): string | undefined {
+  const hoist = resolve(installRoot, 'node_modules/.pnpm/node_modules')
+  if (existsSync(hoist)) return `${pathToFileURL(hoist).href}/`
+  const flat = resolve(installRoot, 'node_modules')
+  if (existsSync(flat)) return `${pathToFileURL(flat).href}/`
+  return undefined
+}
 
 /** The session-telemetry row id the DSH_TELEMETRY_DISABLED switch targets. */
 const TELEMETRY_ROW_ID = 'session-telemetry-otel'
@@ -245,6 +265,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
   ])
   // Cloned for the same insert-aliasing reason as composeLive: the boot
   // application must not mutate the objects later reloads recompose from.
+  const bareBase = resolveBareModuleBase(dirname(INSTALL_ANCHOR))
   const ctx = await boot(NAME, rootConfig, structuredClone(allPatches(composed)), (hostCtx) => {
     app.current = hostCtx
     // Before any config-tree entry mounts, so plugins resolve all launch-time
@@ -256,7 +277,7 @@ export async function runProfile(options: RunProfileOptions): Promise<{ ctx: Con
       args: options.args,
       exit: code => void shutdown.shutdown(code),
     })
-  })
+  }, bareBase)
   app.current = ctx
   // A surface can dispose the whole tree while boot or this post-boot watcher
   // setup is still in flight — a signal, or a fast one-shot's appExit. Loader

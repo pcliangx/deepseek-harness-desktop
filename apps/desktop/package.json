@@ -1,0 +1,30 @@
+{
+  "name": "@deepseek-ai/dsh-desktop",
+  "version": "0.1.0-rc.5",
+  "private": true,
+  "description": "Electron desktop shell for DeepSeek Harness: spawns the dsh web host and loads the SPA",
+  "type": "module",
+  "main": "lib/main/index.js",
+  "scripts": {
+    "build": "tsdown",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dist": "node scripts/stage-resources.mjs && pnpm exec tsx scripts/dist.impl.ts"
+  },
+  "license": "MIT",
+  "build": {
+    "extends": "./electron-builder.yml"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@types/node": "^22.0.0",
+    "electron": "41.3.0",
+    "electron-builder": "26.15.3",
+    "playwright": "^1.49.0",
+    "tsdown": "0.22.2",
+    "typescript": "6.0.3",
+    "vitest": "4.1.8"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:^"
+  }
+}
