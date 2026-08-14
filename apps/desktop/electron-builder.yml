@@ -1,0 +1,23 @@
+appId: ai.deepseek.dsh
+productName: DeepSeek Harness
+directories:
+  output: dist-build
+files:
+  - lib/main/**
+extraResources:
+  - from: resources
+    to: .
+asar: true
+asarUnpack:
+  - '**/*.node'
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: zip
+      arch:
+        - arm64
+    - target: dmg
+      arch:
+        - arm64
+  # Unsigned until Plan 2 (signing + notarization).
+  identity: null

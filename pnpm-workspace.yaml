@@ -27,6 +27,10 @@ linkWorkspacePackages: true
 overrides:
   '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
   '@deepseek-ai/schemastery': 'link:vendor/schemastery'
+  # app-builder-lib 26.15.3 reads ElectronDownloadCacheMode, exported only
+  # from @electron/get 3.1.0; plain ^3.0.0 resolved to 3.0.0 and crashed the
+  # mac packager. Scoped so electron's own @electron/get 2.x is untouched.
+  'app-builder-lib>@electron/get': '3.1.0'
 
 peerDependencyRules:
   allowedVersions:
@@ -53,11 +57,10 @@ allowBuilds:
   # The Python runtime deploy includes the reviewed workspace postinstall that
   # restores the executable bit on node-pty's macOS spawn helper.
   '@deepseek-ai/dsh-subprocess-local@file:packages/subprocess/subprocess-local': true
-  # Electron's postinstall downloads the ~200MB platform binary. The desktop
-  # scaffold, port-handshake parser, and host supervisor (Plan 1 Tasks 1-3) do
-  # not exercise the Electron runtime, so deny the scripts now; flip both to
-  # `true` for the packaging task, which needs the binary to assemble the .app.
-  electron: false
+  # Electron's postinstall downloads the ~200MB platform binary. Packaging the
+  # desktop .app (stage-resources + electron-builder) needs it; the scaffold,
+  # handshake, and supervisor work do not.
+  electron: true
   electron-winstaller: false
 
 minimumReleaseAgeExclude:

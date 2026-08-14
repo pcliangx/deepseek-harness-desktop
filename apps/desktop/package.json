@@ -7,11 +7,12 @@
   "main": "lib/main/index.js",
   "scripts": {
     "build": "tsdown",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "package": "node scripts/stage-resources.mjs && electron-builder"
   },
   "license": "MIT",
-  "dependencies": {
-    "@deepseek-ai/dsh": "workspace:^"
+  "build": {
+    "extends": "./electron-builder.yml"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
