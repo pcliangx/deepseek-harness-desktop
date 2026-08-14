@@ -108,6 +108,12 @@ export class LocalSubprocessRuntime extends SubprocessRuntime {
   ): Promise<string> {
     if (command.length === 0) throw new Error('subprocess-local: executable must be non-empty')
     signal?.throwIfAborted()
+    // Under Electron the user machine has no system `node`: the running binary
+    // in Node mode is the one to resolve to. Any other command resolves normally.
+    const isElectron = this.internals.electron ?? Boolean(process.versions.electron)
+    if (isElectron && (command === 'node' || command === 'node.exe')) {
+      return process.execPath
+    }
     const environment = childEnv(env)
     const absolute = isAbsolute(command)
     if (!absolute && (command.includes('/') || (process.platform === 'win32' && command.includes('\\')))) {
