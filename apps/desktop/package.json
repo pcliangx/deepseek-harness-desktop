@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "package": "node scripts/stage-resources.mjs && electron-builder"
+    "dist": "node scripts/stage-resources.mjs && pnpm exec tsx scripts/dist.impl.ts"
   },
   "license": "MIT",
   "build": {
