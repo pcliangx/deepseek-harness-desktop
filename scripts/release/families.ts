@@ -32,6 +32,21 @@ export interface ReleaseMember {
 }
 
 /**
+ * The members a family actually ships.
+ *
+ * `private` packages stay family members — the shared version baseline and the
+ * linked version bumps include them, so a private app keeps the family version
+ * — but pack and publish skip them: npm refuses a private manifest anyway, and
+ * an unpacked payload carries its sources, which the dsh publication payload
+ * policy rejects.
+ * @param members - every family member.
+ * @returns Members whose manifest does not mark them private.
+ */
+export function publishableMembers(members: readonly ReleaseMember[]): ReleaseMember[] {
+  return members.filter(member => member.manifest.private !== true)
+}
+
+/**
  * Read and parse a JSON file.
  * @param path - absolute file path.
  * @returns The parsed object.
