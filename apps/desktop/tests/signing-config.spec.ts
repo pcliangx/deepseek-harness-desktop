@@ -25,3 +25,12 @@ test('partial notarization identity fails loud naming the missing vars', () => {
   const partial = { ...CERT, APPLE_ID: NOTARY.APPLE_ID, APPLE_TEAM_ID: NOTARY.APPLE_TEAM_ID }
   assert.throws(() => resolveMacSigning(partial), /APPLE_APP_SPECIFIC_PASSWORD/)
 })
+
+test('an empty CSC_LINK counts as unset (GitHub absent secrets)', () => {
+  assert.deepEqual(resolveMacSigning({ CSC_LINK: '' }), { identity: null, notarize: false, hardenedRuntime: false, entitlements: null })
+})
+
+test('an empty-string notarization var counts as missing', () => {
+  const emptyVar = { ...CERT, APPLE_ID: '', APPLE_APP_SPECIFIC_PASSWORD: NOTARY.APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID: NOTARY.APPLE_TEAM_ID }
+  assert.throws(() => resolveMacSigning(emptyVar), /APPLE_ID/)
+})
