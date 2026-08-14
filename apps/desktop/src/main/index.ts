@@ -15,8 +15,8 @@ const windows = new Set<BrowserWindow>()
 
 void app.whenReady().then(async () => {
   // Development resolves the CLI from the checkout this bundle lives in
-  // (lib/main → desktop → apps → repo root); packaged builds use resources.
-  const devRoot = resolve(import.meta.dirname, '../../..')
+  // (lib/main → lib → desktop → apps → repo root); packaged builds use resources.
+  const devRoot = resolve(import.meta.dirname, '../../../..')
   const host = startHost({
     execPath: process.execPath,
     cliBin: cliBinPath({ isPackaged: app.isPackaged, resourcesPath: process.resourcesPath, devRoot }),
