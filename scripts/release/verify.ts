@@ -9,18 +9,7 @@
 
 import { parseArgs } from 'node:util'
 import { isEntry } from './process.ts'
-import { releaseFamily, type ReleaseFamily, type ReleaseMember } from './families.ts'
-
-/**
- * Assert every member may be published: npm refuses a `private` package.
- * @param members - the family's members.
- */
-function verifyPublishable(members: readonly ReleaseMember[]): void {
-  const priv = members.filter(member => member.manifest.private === true)
-  if (priv.length > 0) {
-    throw new Error(`publishing requires removing "private": true from:\n${priv.map(member => member.directory).join('\n')}`)
-  }
-}
+import { publishableMembers, releaseFamily, type ReleaseFamily, type ReleaseMember } from './families.ts'
 
 /**
  * Assert the workflow runs from a tag this family publishes from, and that the
@@ -58,8 +47,9 @@ function main(): void {
 
   const publishing = process.env.RELEASE_PUBLISH === 'true'
   if (publishing) {
-    verifyPublishable(members)
-    verifyTag(family, members, process.env.GITHUB_REF ?? '')
+    // Private members stay in the family for version baselines and linked
+    // bumps; only the publish set reaches npm, so the tag gate names it.
+    verifyTag(family, publishableMembers(members), process.env.GITHUB_REF ?? '')
   }
 
   const versions = [...new Set(members.map(member => member.version))]

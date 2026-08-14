@@ -1,7 +1,10 @@
 /** Release family discovery, publish order, tag naming, and the bump judgements. */
 
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { releaseFamily, type ReleaseMember } from './families.ts'
+import { publishableMembers, releaseFamily, type ReleaseMember } from './families.ts'
 import { compareVersions, nextVendorVersion, reachesPayload } from './bump.ts'
 
 /**
@@ -84,6 +87,33 @@ describe('release families', () => {
       .toThrow(/publishes source file/)
     expect(() => { vendor.validatePayload(vendored, ['package/lib/index.js', 'package/src/index.ts']) }).not.toThrow()
     expect(() => { vendor.validatePayload(vendored, []) }).toThrow(/empty tarball/)
+  })
+
+  it('keeps a private member in the family but out of the publish set', () => {
+    const dsh = releaseFamily('dsh')
+    const desktop = member('apps/desktop', '@deepseek-ai/dsh-desktop', { private: true })
+    const cli = member('apps/cli', '@deepseek-ai/dsh')
+
+    // The version baseline still includes the private member.
+    expect(() => { dsh.verifyVersions([desktop, cli]) }).not.toThrow()
+    expect(() => { dsh.verifyVersions([desktop, { ...cli, version: '0.0.2' }]) }).toThrow(/must share one version/)
+    // Pack and publish see only the public members.
+    expect(publishableMembers([desktop, cli]).map(entry => entry.name)).toEqual(['@deepseek-ai/dsh'])
+    expect(dsh.publishOrder(publishableMembers([desktop, cli])).map(entry => entry.name)).toEqual(['@deepseek-ai/dsh'])
+  })
+
+  it('discovers a private manifest as a family member and filters it from publication', () => {
+    const root = mkdtempSync(resolve(tmpdir(), 'dsh-family-'))
+    try {
+      mkdirSync(resolve(root, 'apps/desktop'), { recursive: true })
+      writeFileSync(resolve(root, 'apps/desktop/package.json'),
+        JSON.stringify({ name: '@deepseek-ai/dsh-desktop', version: '0.1.0-rc.5', private: true }))
+      const members = releaseFamily('dsh').members(root)
+      expect(members.map(entry => entry.name)).toContain('@deepseek-ai/dsh-desktop')
+      expect(publishableMembers(members)).toEqual([])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('drives the installed entry only for the family that publishes one', () => {

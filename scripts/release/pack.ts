@@ -10,7 +10,7 @@
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { parseArgs } from 'node:util'
-import { releaseFamily, tarballName, type ReleaseFamily, type ReleaseMember } from './families.ts'
+import { publishableMembers, releaseFamily, tarballName, type ReleaseFamily, type ReleaseMember } from './families.ts'
 import { isEntry, run } from './process.ts'
 import { PUBLISH_ORDER_FILE, tarballFiles } from './tarball.ts'
 
@@ -45,8 +45,12 @@ function main(): void {
   const family = releaseFamily(values.family)
   const root = process.cwd()
   const destination = resolve(root, values.out ?? DEFAULT_OUTPUT)
-  const members = family.publishOrder(family.members(root))
-  family.verifyVersions(members)
+  const allMembers = family.members(root)
+  family.verifyVersions(allMembers)
+  // Private members stay in the family for the version baseline and linked
+  // bumps, but nothing packs or publishes them.
+  const members = family.publishOrder(publishableMembers(allMembers))
+  if (members.length === 0) throw new Error(`release family ${family.id} has no publishable members`)
 
   rmSync(destination, { recursive: true, force: true })
   mkdirSync(destination, { recursive: true })
