@@ -37,6 +37,6 @@ void app.whenReady().then(async () => {
     const failure = new BrowserWindow({ width: 640, height: 320 })
     windows.add(failure)
     failure.on('closed', () => { windows.delete(failure) })
-    await failure.loadURL('data:text/html,' + encodeURIComponent(`<pre>dsh failed to start:\n${String(error)}</pre>`))
+    await failure.loadURL('data:text/plain,' + encodeURIComponent(`dsh failed to start:\n${String(error)}`))
   }
 })
