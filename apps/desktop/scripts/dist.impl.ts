@@ -7,10 +7,27 @@
  * @module @deepseek-ai/dsh-desktop/scripts/dist
  */
 import { spawnSync } from 'node:child_process'
-import { closeSync, openSync, readdirSync, readSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
+import { closeSync, existsSync, mkdtempSync, openSync, readdirSync, readSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 import { isMachO } from '../src/macho.ts'
 import { resolveMacSigning, type MacSigningConfig } from '../src/signing-config.ts'
+
+/**
+ * Run a security/codesign tool to completion, failing the dist on a non-zero
+ * exit.
+ * @param tool - the executable name.
+ * @param args - its argv (may contain passphrases, as in electron-builder's
+ * own import; this path runs on ephemeral CI runners).
+ */
+function run(tool: string, args: string[]): void {
+  const result = spawnSync(tool, args, { stdio: 'inherit' })
+  if (result.status !== 0) {
+    console.error(`dist: ${tool} ${args.join(' ')} failed with exit ${result.status}`)
+    process.exit(result.status ?? 1)
+  }
+}
 
 /**
  * Translate resolved signing inputs into electron-builder `-c.mac.*` CLI
@@ -70,6 +87,50 @@ function preSignCliTree(identity: string): void {
 }
 
 /**
+ * Make the resolved identity usable before electron-builder runs: the builder
+ * imports CSC_LINK into its own keychain only inside its signing step, which
+ * starts after the staged tree must already be pre-signed. A matching
+ * identity already in the keychain (a developer machine) skips the import;
+ * otherwise a throwaway keychain receives the p12 (a path or base64 payload)
+ * with codesign access granted and is registered at the front of the user
+ * search list.
+ * @param env - the credential env (CSC_LINK, CSC_KEY_PASSWORD).
+ * @returns the keychain cleanup, or undefined when no keychain was created.
+ */
+function importIdentity(env: NodeJS.ProcessEnv): (() => void) | undefined {
+  const link = env.CSC_LINK ?? ''
+  const password = env.CSC_KEY_PASSWORD ?? ''
+  if (link === '' || password === '') throw new Error('dist: pre-signing requires CSC_LINK and CSC_KEY_PASSWORD')
+  const known = spawnSync('security', ['find-identity', '-v', '-p', 'codesigning'])
+  if (known.status === 0 && known.stdout.toString().includes('Developer ID Application')) {
+    console.log('dist: a Developer ID Application identity is already in the keychain; skipping the import')
+    return undefined
+  }
+  const keychainPassword = randomBytes(24).toString('hex')
+  const keychain = `dsh-csc-${randomBytes(6).toString('hex')}.keychain-db`
+  const dir = mkdtempSync(resolve(tmpdir(), 'dsh-csc-'))
+  let p12 = link
+  if (!existsSync(link)) {
+    p12 = resolve(dir, 'cert.p12')
+    writeFileSync(p12, Buffer.from(link, 'base64'))
+  }
+  run('security', ['create-keychain', '-p', keychainPassword, keychain])
+  run('security', ['unlock-keychain', '-p', keychainPassword, keychain])
+  run('security', ['set-keychain-settings', keychain])
+  run('security', ['import', p12, '-k', keychain, '-P', password, '-T', '/usr/bin/codesign'])
+  run('security', ['set-key-partition-list', '-S', 'apple-tool:,apple:', '-k', keychainPassword, '-T', '/usr/bin/codesign', keychain])
+  const listed = spawnSync('security', ['list-keychains', '-d', 'user'])
+  const previous = listed.status === 0
+    ? listed.stdout.toString().split('\n').map(line => line.trim().replace(/^"|"$/g, '')).filter(line => line !== '')
+    : []
+  run('security', ['list-keychains', '-d', 'user', '-s', keychain, ...previous])
+  return () => {
+    run('security', ['delete-keychain', keychain])
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+/**
  * Run electron-builder with the resolved overrides; propagates its exit code.
  * `--publish never` is fixed: CI detection would otherwise trigger an implicit
  * GitHub-Release publish the read-only workflow token cannot perform; release
@@ -77,11 +138,18 @@ function preSignCliTree(identity: string): void {
  */
 function main(): void {
   const config = resolveMacSigning(process.env)
-  if (config.identity !== null) preSignCliTree(config.identity)
-  const args = builderArgs(config)
-  console.log('dist: electron-builder', args.join(' '), '--publish never')
-  const result = spawnSync('pnpm', ['exec', 'electron-builder', ...args, '--publish', 'never'], { stdio: 'inherit' })
-  process.exit(result.status ?? 1)
+  const disposeKeychain = config.identity !== null ? importIdentity(process.env) : undefined
+  let status: number | null = 0
+  try {
+    if (config.identity !== null) preSignCliTree(config.identity)
+    const args = builderArgs(config)
+    console.log('dist: electron-builder', args.join(' '), '--publish never')
+    const result = spawnSync('pnpm', ['exec', 'electron-builder', ...args, '--publish', 'never'], { stdio: 'inherit' })
+    status = result.status
+  } finally {
+    disposeKeychain?.()
+  }
+  process.exit(status ?? 1)
 }
 
 // Entry guard: tests import `builderArgs` from this module and must not spawn.
