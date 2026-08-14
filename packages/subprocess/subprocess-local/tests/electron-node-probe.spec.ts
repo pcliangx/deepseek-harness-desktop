@@ -11,7 +11,7 @@ import type { SpawnInternals } from '../src/spawn.ts'
 interface CapturedLaunch {
   program?: string
   args?: string[]
-  env?: NodeJS.ProcessEnv
+  env?: NodeJS.ProcessEnv | undefined
 }
 
 /**
