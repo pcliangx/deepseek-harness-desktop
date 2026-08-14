@@ -7,7 +7,13 @@ export interface HostSpawnOptions {
   execPath: string
   /** Absolute path to the built CLI bin (`apps/cli/lib/bin.js`). */
   cliBin: string
-  /** Extra host environment (e.g. `DEEPSEEK_API_KEY`, `DSH_HOME`); merged over the parent env. */
+  /**
+   * Extra host environment (e.g. `DEEPSEEK_API_KEY`, `DSH_HOME`); merged over the
+   * parent env. Same-process typed config: callers must source values only from
+   * trusted code or validated settings — never model/tool output. Validation
+   * belongs at the boundary that produces these values. Merged before
+   * `ELECTRON_RUN_AS_NODE`, which this layer pins and callers cannot unset.
+   */
   env?: Record<string, string>
   /** Deadline for the port handshake. Defaults to 15 s. */
   startupMs?: number
