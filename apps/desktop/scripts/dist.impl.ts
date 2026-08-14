@@ -25,11 +25,16 @@ export function builderArgs(config: MacSigningConfig): string[] {
   return args
 }
 
-/** Run electron-builder with the resolved overrides; propagates its exit code. */
+/**
+ * Run electron-builder with the resolved overrides; propagates its exit code.
+ * `--publish never` is fixed: CI detection would otherwise trigger an implicit
+ * GitHub-Release publish the read-only workflow token cannot perform; release
+ * publishing stays a deliberate later step.
+ */
 function main(): void {
   const args = builderArgs(resolveMacSigning(process.env))
-  console.log('dist: electron-builder', args.join(' '))
-  const result = spawnSync('pnpm', ['exec', 'electron-builder', ...args], { stdio: 'inherit' })
+  console.log('dist: electron-builder', args.join(' '), '--publish never')
+  const result = spawnSync('pnpm', ['exec', 'electron-builder', ...args, '--publish', 'never'], { stdio: 'inherit' })
   process.exit(result.status ?? 1)
 }
 
