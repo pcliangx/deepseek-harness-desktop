@@ -10,41 +10,56 @@ DeepSeek Harness is a plugin-based agent harness on vendored Cordis: **everythin
 
 ```
 vendor/      Vendored Cordis source — manifest + sync procedure in vendor/README.md
-packages/    @deepseek-ai/dsh-<pkg> workspaces at packages/<group>/<pkg>/
-  core/        product API spine: session, system-prompt, tools, agent, agent-loop
-  api/         Remote BFF assembly and Typert RPC gateway
-  typert/      type graph generator, loader, and runtime registry
-  llm/         LLM capability: Service Definition/Consumer + DeepSeek providers
-  e2b/         E2B POC: sandbox + FS/subprocess adapters
-  shell/        bash capability: Service Definition + local/pwsh providers + shell Consumers
-  subprocess/  subprocess capability + local process-tree provider
+packages/    @deepseek-ai/dsh-<pkg> workspaces at packages/<group>/<pkg>/ (roles: packages/README.md)
+  core/        session, system-prompt, tools, agent
+  api/         remote BFF + Typert RPC gateway
+  typert/      type graph generator, loader, registry
+  goal/        same-session goals
+  schedule/    scheduled follow-ups
+  feedback/    human feedback
+  llm/         Service Definition + DeepSeek providers
+  e2b/         E2B POC
+  shell/        local/pwsh bash providers
+  subprocess/  local process-tree provider
   terminal/         persistent sessions
-  fs/          filesystem capability + policy
-  lsp/         language-server capability
-  skill/       skill provider registry + local impl + catalog/loader tool
-  web/         web capability: Service Definition + search/fetch providers + tool Consumer
-  compaction/     compaction capability + basic provider
+  code-runtime/  code execution + Code Mode
+  sandbox/     bwrap/Landlock/Seatbelt confinement
+  fs/          filesystem + policy
+  lsp/         language servers
+  skill/       skill registry + catalog tool
+  web/         search/fetch providers
+  attachment/  content-addressed storage
+  spill/       tool-result spill
+  compaction/     basic provider
   context/     request-context plugins
-  subagent/    subagent capability: Service Definition + providers + delegation Consumers
-  bundle/      installable dsh --profile patch-layer bundles
-  workflow/    workflow capability + worker-thread provider + tool Consumer
+  subagent/    delegation providers
+  jobs/        job_* tools
+  bundle/      dsh --profile patch layers
+  workflow/    worker-thread engine
   todo/        todo_write tool
   plan/        plan mode as logged state
-  preset/      per-session agent composition from preset cordis.yml files
+  preset/      preset cordis.yml composition
   guard/       loop-hygiene + tool-timeout plugins
-  self-modification/  the agent inspects/mounts its own plugins
-  hooks/       Claude Code/Codex hook bridges + wire-protocol library
-  session/     durable session data: persistence, projection, titles, telemetry
+  extensions/  runtime self-modification: inspection + plugin mount
+  hooks/       Claude Code/Codex hook bridges
+  session/     persistence, projection, titles
+  session-query/  corpus, bounded reads, FTS
   identity/    anonymous identity
-  settings/    user-settings capability + file provider
-  credentials/ credential-reference capability + env/.env provider
-  acp/         automation-only Agent Client Protocol server
-  interaction/ approval/interaction capabilities, permission, commands, ask-user
+  settings/    user settings via files
+  credentials/ credential references (env/.env)
+  storage/     non-session storage hub
+  workspace/   workspace entity
+  mcp/         MCP server bridge
+  acp/         automation-only ACP server
+  interaction/ approval, permission, ask-user
   boot/        shared app-bin glue
-  sdk/         JSON-RPC protocol, server, and TypeScript client
-  examples/    demo bundles (agent-spine + CLI/ACP/JSON-RPC bins)
-  support/     dev/test infrastructure
+  host/        web-GUI host: API gateway + routes
+  client/      web-GUI browser: shell, wire, ui-* plugins
+  sdk/         JSON-RPC protocol + TS client
+  examples/    demo bundles
+  test-support/  testkits, invariants, replay
   util/        zero-dependency utilities
+apps/        runnable entry points: dsh CLI, web app, Electron desktop shell
 python/      Python SDK and bundled runtime (see python/README.md)
 native/      @deepseek-ai/node-addon-landlock-run source of record (see native/README.md)
 examples/    Runnable cordis.yml leaves over packages/examples bundles (see examples/AGENTS.md)
