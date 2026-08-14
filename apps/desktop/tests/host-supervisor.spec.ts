@@ -18,6 +18,28 @@ function fakeSpawn(emit: string): SpawnFn {
   }) as unknown as SpawnFn
 }
 
+/** A spawn stand-in that records the launch argv for inspection. */
+function capturingSpawn(captured: { args?: string[] }): SpawnFn {
+  return ((_program: string, args: string[]) => {
+    captured.args = args
+    const child = new EventEmitter() as unknown as ChildProcess
+    child.stdout = new EventEmitter() as unknown as Readable
+    child.kill = () => true
+    return child
+  }) as unknown as SpawnFn
+}
+
+test('launches node with --expose-internals before the CLI bin', async () => {
+  const captured: { args?: string[] } = {}
+  const host = startHost({
+    execPath: '/usr/local/bin/node',
+    cliBin: '/repo/apps/cli/lib/bin.js',
+    spawnFn: capturingSpawn(captured),
+  })
+  assert.deepEqual(captured.args, ['--expose-internals', '/repo/apps/cli/lib/bin.js', 'web', '--port', '0'])
+  await host.dispose()
+})
+
 test('resolves the bound port from the readiness line', async () => {
   const host = startHost({
     execPath: '/usr/local/bin/node',

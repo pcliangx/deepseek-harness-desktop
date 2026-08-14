@@ -32,13 +32,15 @@ export interface HostSupervisor {
 /**
  * Spawn the dsh web host with `--port 0` and resolve its OS-assigned port from the
  * readiness line. Runs the Electron binary as Node (`ELECTRON_RUN_AS_NODE=1`) so no
- * system Node is required.
+ * system Node is required. `--expose-internals` is required because the web profile
+ * loads the cordis HMR plugin, which reads Node internals the loader only exposes
+ * under that flag.
  */
 export function startHost(opts: HostSpawnOptions): HostSupervisor {
   const startupMs = opts.startupMs ?? 15_000
   const child: ChildProcess = (opts.spawnFn ?? spawn)(
     opts.execPath,
-    [opts.cliBin, 'web', '--port', '0'],
+    ['--expose-internals', opts.cliBin, 'web', '--port', '0'],
     {
       env: { ...process.env, ...opts.env, ELECTRON_RUN_AS_NODE: '1' },
       stdio: ['ignore', 'pipe', 'inherit'],
